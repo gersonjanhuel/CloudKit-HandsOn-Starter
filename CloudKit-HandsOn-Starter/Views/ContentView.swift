@@ -12,6 +12,7 @@ struct ContentView: View {
     
     var body: some View {
         NavigationView {
+            
             List(viewModel.vocabs, id: \.self) { vocab in
                Text(vocab.word)
             }
@@ -24,6 +25,21 @@ struct ContentView: View {
                     Text("Add")
                 })
             )
+        }
+        .refreshable {
+            await viewModel.fetchVocabs()
+        }
+        .task {
+            await viewModel.fetchVocabs()
+            
+            viewModel.requestNotificationPermission()
+            
+            await viewModel.subscribeToVocabDatabase()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vocabsUpdateNotification)) { _ in
+            Task {
+                await viewModel.fetchVocabs()
+            }
         }
         
     }
@@ -41,7 +57,9 @@ struct ContentView: View {
         alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
             let textField = alert.textFields![0] as UITextField
             if let newVocab = textField.text {
-                print(newVocab)
+                Task {
+                    await viewModel.createNewVocab(word: newVocab)
+                }
             }
         })
         
